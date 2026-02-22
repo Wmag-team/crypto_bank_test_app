@@ -1,19 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Класс модели пользователя системы.
+ *
+ * Представляет зарегистрированного пользователя банка и его основные данные.
+ *
+ * @property int $id Идентификатор пользователя
+ * @property string $name Имя пользователя
+ * @property string $email Электронная почта пользователя
+ * @property string $password Хэш пароля пользователя
+ * @property string $balance Баланс пользователя в условных единицах
+ * @property \Illuminate\Support\Carbon|null $email_verified_at Дата подтверждения email
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions Коллекция транзакций пользователя
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+    use Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * Атрибуты, которые можно массово заполнять.
      *
      * @var list<string>
      */
@@ -21,10 +39,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'balance',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * Атрибуты, которые должны быть скрыты при сериализации.
      *
      * @var list<string>
      */
@@ -34,7 +53,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Получить массив преобразований типов атрибутов.
      *
      * @return array<string, string>
      */
@@ -43,6 +62,17 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'balance' => 'decimal:18',
         ];
+    }
+
+    /**
+     * Получить транзакции, связанные с пользователем.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\Transaction>
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
     }
 }
