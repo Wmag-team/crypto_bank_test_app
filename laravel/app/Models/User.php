@@ -18,11 +18,16 @@ use Illuminate\Notifications\Notifiable;
  *
  * Представляет зарегистрированного пользователя банка и его основные данные.
  *
+ * Два аспекта баланса:
+ * - Поле balance — хранимое значение, отображаемое в панели (обновляется методом recalculateBalanceFromTransactions).
+ * - Реальный баланс — считается по завершённым транзакциям (пополнения, полученные переводы минус списания и отправленные переводы).
+ * После любых операций с деньгами пользователя нужно вызывать recalculateBalanceFromTransactions(), чтобы поле balance совпадало с реальным балансом.
+ *
  * @property int $id Идентификатор пользователя
  * @property string $name Имя пользователя
  * @property string $email Электронная почта пользователя
  * @property string $password Хэш пароля пользователя
- * @property string $balance Баланс пользователя в условных единицах
+ * @property string $balance Баланс пользователя в условных единицах (должен обновляться через recalculateBalanceFromTransactions)
  * @property \Illuminate\Support\Carbon|null $email_verified_at Дата подтверждения email
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions Коллекция транзакций пользователя
  */
@@ -95,5 +100,49 @@ class User extends Authenticatable implements FilamentUser
     public function isAdmin(): bool
     {
         return $this->email === 'admin@mail.com';
+    }
+
+    /**
+     * Рассчитывает реальный баланс пользователя по завершённым транзакциям.
+     *
+     * Учитываются: пополнения (+), списания (-), входящие переводы (+), исходящие переводы (-), комиссии (-).
+     * Только транзакции со статусом completed. Точность — 18 знаков после запятой.
+     *
+     * @return string Баланс в виде строки (decimal:18)
+     */
+    public function getCalculatedBalance(): string
+    {
+        $rows = $this->transactions()
+            ->where('status', 'completed')
+            ->get(['type', 'direction', 'amount']);
+
+        $total = '0';
+        foreach ($rows as $tx) {
+            $amount = (string) $tx->amount;
+            $sign = match ($tx->type) {
+                'deposit' => 1,
+                'withdraw' => -1,
+                'transfer' => $tx->direction === 'in' ? 1 : -1,
+                'commission' => -1,
+                default => 0,
+            };
+            if ($sign !== 0) {
+                $total = $sign > 0 ? bcadd($total, $amount, 18) : bcsub($total, $amount, 18);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * Пересчитывает реальный баланс по транзакциям и обновляет поле balance у пользователя.
+     *
+     * Вызывать после каждого изменения, связанного с деньгами пользователя (перевод, пополнение, списание),
+     * чтобы отображаемый баланс в панели всегда соответствовал сумме по транзакциям.
+     */
+    public function recalculateBalanceFromTransactions(): void
+    {
+        $this->balance = $this->getCalculatedBalance();
+        $this->save();
     }
 }

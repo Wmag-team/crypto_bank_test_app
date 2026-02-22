@@ -71,22 +71,24 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Генерация по 5–10 фейковых транзакций для каждого переданного пользователя.
+     * Генерация фейковых транзакций: по 5–10 операций на пользователя (deposit, withdraw, commission)
+     * и переводы только парами — для каждого перевода две записи (исходящий + входящий) у двух пользователей.
      *
      * @param array<int, User> $users
      */
     private function seedTransactions(array $users): void
     {
-        $types = ['deposit', 'withdraw', 'transfer', 'commission'];
+        $singleTypes = ['deposit', 'withdraw', 'commission'];
         $statuses = ['pending', 'completed', 'failed'];
 
         foreach ($users as $user) {
             $count = random_int(5, 10);
-
             for ($i = 0; $i < $count; $i++) {
                 Transaction::query()->create([
                     'user_id' => $user->id,
-                    'type' => fake()->randomElement($types),
+                    'type' => fake()->randomElement($singleTypes),
+                    'direction' => null,
+                    'counterparty_user_id' => null,
                     'amount' => (string) fake()->randomFloat(2, 10, 5000),
                     'status' => fake()->randomElement($statuses),
                     'metadata' => [
@@ -96,6 +98,21 @@ class DatabaseSeeder extends Seeder
                     'created_at' => fake()->dateTimeBetween('-6 months', 'now'),
                 ]);
             }
+        }
+
+        $transferCount = (int) round(count($users) * 1.5);
+        $transferCount = max(2, min($transferCount, count($users) * 3));
+        for ($t = 0; $t < $transferCount; $t++) {
+            $from = fake()->randomElement($users);
+            $to = fake()->randomElement(array_filter($users, fn (User $u) => $u->id !== $from->id));
+            if (! $to) {
+                continue;
+            }
+            $amount = (string) fake()->randomFloat(2, 10, 3000);
+            $status = fake()->randomElement($statuses);
+            $createdAt = fake()->dateTimeBetween('-6 months', 'now');
+
+            Transaction::createTransferPair($from, $to, $amount, $status, $createdAt);
         }
     }
 }

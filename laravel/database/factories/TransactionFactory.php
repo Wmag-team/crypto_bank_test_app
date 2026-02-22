@@ -33,6 +33,7 @@ class TransactionFactory extends Factory
 
     /**
      * Определение состояния модели по умолчанию.
+     * Для type=transfer задаются direction и counterparty_user_id; для остальных — null.
      *
      * @return array<string, mixed>
      */
@@ -42,17 +43,50 @@ class TransactionFactory extends Factory
         $status = fake()->randomElement(self::STATUSES);
         $amount = (string) fake()->randomFloat(2, 10, 5000);
 
-        return [
+        $base = [
             'user_id' => User::factory(),
             'type' => $type,
             'amount' => $amount,
             'status' => $status,
-            'metadata' => [
-                'comment' => fake()->optional(0.7)->sentence(4),
-                'reference' => fake()->optional(0.5)->uuid(),
-            ],
             'created_at' => fake()->dateTimeBetween('-6 months', 'now'),
             'updated_at' => now(),
         ];
+
+        if ($type === 'transfer') {
+            $base['direction'] = fake()->randomElement(['in', 'out']);
+            $base['counterparty_user_id'] = User::factory();
+            $base['metadata'] = null;
+        } else {
+            $base['direction'] = null;
+            $base['counterparty_user_id'] = null;
+            $base['metadata'] = [
+                'comment' => fake()->optional(0.7)->sentence(4),
+                'reference' => fake()->optional(0.5)->uuid(),
+            ];
+        }
+
+        return $base;
+    }
+
+    /** Состояние: исходящий перевод (direction=out). */
+    public function outgoing(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => 'transfer',
+            'direction' => 'out',
+            'counterparty_user_id' => $attributes['counterparty_user_id'] ?? User::factory(),
+            'metadata' => null,
+        ]);
+    }
+
+    /** Состояние: входящий перевод (direction=in). */
+    public function incoming(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => 'transfer',
+            'direction' => 'in',
+            'counterparty_user_id' => $attributes['counterparty_user_id'] ?? User::factory(),
+            'metadata' => null,
+        ]);
     }
 }

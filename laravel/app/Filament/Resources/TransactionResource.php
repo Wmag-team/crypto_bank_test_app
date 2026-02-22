@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Ресурс Filament для просмотра истории транзакций.
- * Доступ только у админа; у пользователей будет свой раздел с их транзакциями.
+ * Админ видит все транзакции; обычный пользователь — только свои (та же таблица и просмотр).
  */
 class TransactionResource extends Resource
 {
@@ -47,15 +47,36 @@ class TransactionResource extends Resource
             ->components([
                 TextEntry::make('id')->label('ID'),
                 TextEntry::make('user_id')->label('ID пользователя'),
-                TextEntry::make('user.email')->label('Email пользователя'),
-                TextEntry::make('type')
+                TextEntry::make('display_user_email')
+                    ->label('Email пользователя')
+                    ->getConstantStateUsing(function (?Transaction $record): ?string {
+                        if ($record === null) {
+                            return null;
+                        }
+                        if (auth()->user()?->isAdmin() === true) {
+                            return $record->user?->email;
+                        }
+                        if ($record->type === 'transfer') {
+                            return $record->counterparty_email;
+                        }
+                        return null;
+                    })
+                    ->placeholder('—'),
+                TextEntry::make('type_label')
                     ->label('Тип')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'deposit' => 'Пополнение',
-                        'withdraw' => 'Списание',
-                        'transfer' => 'Перевод',
-                        'commission' => 'Комиссия',
-                        default => $state,
+                    ->getConstantStateUsing(function (?Transaction $record): string {
+                        if ($record === null) {
+                            return '—';
+                        }
+                        if ($record->type === 'transfer') {
+                            return $record->direction === 'in' ? 'Входящий перевод' : 'Исходящий перевод';
+                        }
+                        return match ($record->type) {
+                            'deposit' => 'Пополнение',
+                            'withdraw' => 'Списание',
+                            'commission' => 'Комиссия',
+                            default => $record->type,
+                        };
                     }),
                 TextEntry::make('amount')
                     ->label('Сумма')
@@ -75,6 +96,10 @@ class TransactionResource extends Resource
                         'failed' => 'danger',
                         default => 'gray',
                     }),
+                TextEntry::make('counterparty_description')
+                    ->label('Контрагент')
+                    ->placeholder('—')
+                    ->visible(fn (?Transaction $record): bool => $record !== null && $record->type === 'transfer'),
                 TextEntry::make('metadata')->label('Метаданные')->formatStateUsing(fn ($state) => $state ? json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '—'),
                 TextEntry::make('created_at')->label('Создана')->dateTime('d.m.Y H:i'),
                 TextEntry::make('updated_at')->label('Обновлена')->dateTime('d.m.Y H:i'),
@@ -88,24 +113,38 @@ class TransactionResource extends Resource
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable(),
-                TextColumn::make('user_id')
-                    ->label('ID пользователя')
-                    ->sortable(),
+                // TextColumn::make('user_id')
+                    // ->label('ID пользователя')
+                    // ->sortable(),
                 TextColumn::make('user.email')
                     ->label('Email пользователя')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->getStateUsing(function (Transaction $record): ?string {
+                        if (auth()->user()?->isAdmin() === true) {
+                            return $record->user?->email;
+                        }
+                        if ($record->type === 'transfer') {
+                            return $record->counterparty_email;
+                        }
+                        return null;
+                    })
+                    ->placeholder('—'),
                 TextColumn::make('type')
                     ->label('Тип')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'deposit' => 'Пополнение',
-                        'withdraw' => 'Списание',
-                        'transfer' => 'Перевод',
-                        'commission' => 'Комиссия',
-                        default => $state,
+                    ->getStateUsing(function (Transaction $record): string {
+                        if ($record->type === 'transfer') {
+                            return $record->direction === 'in' ? 'Входящий перевод' : 'Исходящий перевод';
+                        }
+                        return match ($record->type) {
+                            'deposit' => 'Пополнение',
+                            'withdraw' => 'Списание',
+                            'commission' => 'Комиссия',
+                            default => $record->type,
+                        };
                     })
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn (Transaction $record): string => match ($record->type) {
                         'deposit' => 'success',
                         'withdraw' => 'warning',
                         'transfer' => 'info',
@@ -113,6 +152,10 @@ class TransactionResource extends Resource
                         default => 'gray',
                     })
                     ->sortable(),
+                TextColumn::make('counterparty_description')
+                    ->label('Контрагент')
+                    ->placeholder('—')
+                    ->visible(fn (?Transaction $record): bool => $record !== null && $record->type === 'transfer'),
                 TextColumn::make('amount')
                     ->label('Сумма')
                     ->sortable()
@@ -154,31 +197,39 @@ class TransactionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery();
+        $query = parent::getEloquentQuery();
+        $query->with(['user', 'counterparty']);
+        if (auth()->user()?->isAdmin() !== true) {
+            $query->where('user_id', auth()->id());
+        }
+        return $query;
     }
 
-    /** Транзакции только для просмотра — создание через сервис. */
+    /** Транзакции только для просмотра — создание через сервис/очередь. */
     public static function canCreate(): bool
     {
         return false;
     }
 
-    /** Раздел только для администратора. */
+    /** Раздел виден всем авторизованным: админу — все, пользователю — свои транзакции. */
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return true;
     }
 
     public static function getViewAnyAuthorizationResponse(): Response
     {
-        return auth()->user()?->isAdmin()
-            ? Response::allow()
-            : Response::deny('Доступ только для администратора.');
+        return Response::allow();
     }
 
     public static function getViewAuthorizationResponse(Model $record): Response
     {
-        return static::getViewAnyAuthorizationResponse();
+        if (auth()->user()?->isAdmin() === true) {
+            return Response::allow();
+        }
+        return (int) $record->user_id === (int) auth()->id()
+            ? Response::allow()
+            : Response::deny('Доступ только к своим транзакциям.');
     }
 
     public static function getEditAuthorizationResponse(Model $record): Response

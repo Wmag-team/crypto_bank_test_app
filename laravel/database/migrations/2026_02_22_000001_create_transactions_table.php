@@ -25,6 +25,16 @@ return new class extends Migration
             $table->enum('type', ['deposit', 'withdraw', 'transfer', 'commission'])
                 ->comment('Тип транзакции: deposit, withdraw, transfer или commission');
 
+            $table->enum('direction', ['in', 'out'])
+                ->nullable()
+                ->comment('Для type=transfer: in — входящий перевод, out — исходящий');
+
+            $table->foreignId('counterparty_user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete()
+                ->comment('Для type=transfer: от кого (in) или кому (out) средства');
+
             $table->decimal('amount', 36, 18)
                 ->comment('Сумма транзакции в условных единицах');
 

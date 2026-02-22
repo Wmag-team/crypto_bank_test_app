@@ -5,6 +5,7 @@
 
 ## Технологический стек
 - **Framework:** Laravel 12 (PHP 8.4)
+- **filament/filament:** "~4.0",
 - **Database:** PostgreSQL (точность decimal 36,18)
 - **Admin Panel:** Filament PHP
 - **Queue Driver:** Database (для обеспечения атомарности)
