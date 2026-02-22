@@ -15,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Ресурс Filament для просмотра истории транзакций.
@@ -175,17 +176,17 @@ class TransactionResource extends Resource
             : Response::deny('Доступ только для администратора.');
     }
 
-    public static function getViewAuthorizationResponse(Transaction $record): Response
+    public static function getViewAuthorizationResponse(Model $record): Response
     {
         return static::getViewAnyAuthorizationResponse();
     }
 
-    public static function getEditAuthorizationResponse(Transaction $record): Response
+    public static function getEditAuthorizationResponse(Model $record): Response
     {
         return static::getViewAnyAuthorizationResponse();
     }
 
-    public static function getDeleteAuthorizationResponse(Transaction $record): Response
+    public static function getDeleteAuthorizationResponse(Model $record): Response
     {
         return static::getViewAnyAuthorizationResponse();
     }
