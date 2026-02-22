@@ -5,10 +5,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     libpq-dev \
     libzip-dev \
+    libicu-dev \
     unzip \
     supervisor \
-    && docker-php-ext-install pdo pdo_pgsql pgsql zip bcmath \
     && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-configure intl \
+    && docker-php-ext-install pdo pdo_pgsql pgsql zip bcmath intl
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -20,4 +23,3 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm"]
-

@@ -59,3 +59,10 @@
 2026-02-22 11:20:18,599 INFO supervisord started with pid 1
 2026-02-22 11:20:19,601 INFO spawned: 'queue-worker' with pid 13
 2026-02-22 11:20:20,605 INFO success: queue-worker entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2026-02-22 11:28:01,379 WARN received SIGQUIT indicating exit request
+2026-02-22 11:28:01,379 INFO waiting for queue-worker to die
+2026-02-22 11:28:01,403 WARN stopped: queue-worker (terminated by SIGTERM)
+2026-02-22 11:42:56,108 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+2026-02-22 11:42:56,185 INFO supervisord started with pid 1
+2026-02-22 11:42:57,213 INFO spawned: 'queue-worker' with pid 13
+2026-02-22 11:42:58,239 INFO success: queue-worker entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
