@@ -24,12 +24,12 @@ class CryptoBalanceServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private CryptoBalanceService $service;
+    private CryptoBalanceService $CryptoBalanceService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = app(CryptoBalanceService::class);
+        $this->CryptoBalanceService = app(CryptoBalanceService::class);
     }
 
     /**
@@ -45,7 +45,7 @@ class CryptoBalanceServiceTest extends TestCase
         $this->expectException(InsufficientBalanceException::class);
         $this->expectExceptionMessage('Недостаточно средств на балансе.');
 
-        $this->service->withdraw($user, '150.00');
+        $this->CryptoBalanceService->withdraw($user, '150.00');
     }
 
     /**
@@ -56,7 +56,7 @@ class CryptoBalanceServiceTest extends TestCase
     public function test_withdraw_succeeds_when_balance_equals_amount(): void
     {
         $user = User::factory()->create(['balance' => '100.00']);
-        $this->service->withdraw($user, '100.00');
+        $this->CryptoBalanceService->withdraw($user, '100.00');
         $user->refresh();
         $this->assertSame('0.000000000000000000', (string) $user->balance);
     }
@@ -105,7 +105,7 @@ class CryptoBalanceServiceTest extends TestCase
         $countBefore = Transaction::count();
 
         try {
-            $this->service->transfer($from, $to, '50.00');
+            $this->CryptoBalanceService->transfer($from, $to, '50.00');
         } catch (InsufficientBalanceException) {
             // ожидаем
         }
@@ -132,7 +132,7 @@ class CryptoBalanceServiceTest extends TestCase
 
         for ($i = 0; $i < 10; $i++) {
             try {
-                $this->service->withdraw($user->fresh(), '100.00');
+                $this->CryptoBalanceService->withdraw($user->fresh(), '100.00');
                 $successCount++;
             } catch (InsufficientBalanceException) {
                 $failCount++;
@@ -155,11 +155,11 @@ class CryptoBalanceServiceTest extends TestCase
         $user = User::factory()->create(['balance' => '0']);
         $amount = '0.123456789012345678';
 
-        $this->service->deposit($user, $amount);
+        $this->CryptoBalanceService->deposit($user, $amount);
         $user->refresh();
         $this->assertSame('0.123456789012345678', (string) $user->balance);
 
-        $this->service->deposit($user, '0.000000000000000001');
+        $this->CryptoBalanceService->deposit($user, '0.000000000000000001');
         $user->refresh();
         $this->assertSame('0.123456789012345679', (string) $user->balance);
     }

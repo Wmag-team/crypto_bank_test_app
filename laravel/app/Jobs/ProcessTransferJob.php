@@ -49,10 +49,10 @@ class ProcessTransferJob implements ShouldQueue
      *
      * При любом исключении транзакция внутри сервиса откатывается.
      */
-    public function handle(CryptoBalanceService $service): void
+    public function handle(CryptoBalanceService $CryptoBalanceService): void
     {
         $from = User::findOrFail($this->fromUserId);
         $to = User::findOrFail($this->toUserId);
-        $service->transfer($from, $to, $this->amount);
+        $CryptoBalanceService->transfer($from, $to, $this->amount);
     }
 }

@@ -72,7 +72,7 @@ class TransferPage extends Page
                 ->label('Отправить перевод')
                 ->color('primary')
                 ->requiresConfirmation(false)
-                ->action(function (CryptoBalanceService $service) {
+                ->action(function (CryptoBalanceService $CryptoBalanceService) {
                     // Используем данные из свойств класса
                     $id = $this->to_user_id;
                     $sum = $this->amount;
@@ -89,7 +89,7 @@ class TransferPage extends Page
                     try {
                         $toUser = User::findOrFail($id);
 
-                        $service->transfer(Auth::user(), $toUser, (string)$sum);
+                        $CryptoBalanceService->transfer(Auth::user(), $toUser, (string)$sum);
 
                         Notification::make()
                             ->title('Успешно')
