@@ -46,8 +46,8 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/ваш-username/ваш-репозиторий.git
-cd ваш-репозиторий
+git clone https://github.com/Wmag-team/crypto_bank_test_app.git
+cd crypto_bank_test_app
 ```
 
 ### 2. Запуск контейнеров
